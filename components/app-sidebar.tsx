@@ -26,7 +26,7 @@ export function AppSidebar() {
   }
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
+      localStorage.removeItem("token"); 
     }
     router.replace("/");
   };
