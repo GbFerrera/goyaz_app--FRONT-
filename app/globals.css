@@ -50,12 +50,12 @@
      - Chocolate: #4A2A1A
   */
   --radius: 0.625rem;
-  --background: #F5F5DC; /* Bege Claro */
-  --foreground: #4A2A1A; /* Chocolate */
+  --background: #FFFFFF;
+  --foreground: #111111;
   --card: #FFFFFF;
-  --card-foreground: #4A2A1A; /* Chocolate */
+  --card-foreground: #111111;
   --popover: #FFFFFF;
-  --popover-foreground: #4A2A1A; /* Chocolate */
+  --popover-foreground: #111111;
   --primary: #6F4E37; /* Marrom Café */
   --primary-foreground: #F5F5DC; /* Bege Claro */
   --secondary: #E3CDB8; /* Areia */
@@ -73,14 +73,14 @@
   --chart-3: #E3CDB8; /* Areia */
   --chart-4: #F5F5DC; /* Bege Claro */
   --chart-5: #6F4E37; /* Marrom Café */
-  --sidebar: #E3CDB8; /* Areia */
-  --sidebar-foreground: #4A2A1A; /* Chocolate */
-  --sidebar-primary: #6F4E37; /* Marrom Café */
-  --sidebar-primary-foreground: #F5F5DC; /* Bege Claro */
-  --sidebar-accent: #6F4E37; /* Marrom Café */
-  --sidebar-accent-foreground: #F5F5DC; /* Bege Claro */
-  --sidebar-border: #6F4E37; /* Marrom Café */
-  --sidebar-ring: #6F4E37; /* Marrom Café */
+  --sidebar: #6F4E37;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #6F4E37;
+  --sidebar-accent: rgba(255, 255, 255, 0.1);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #FFFFFF;
 }
 
 .dark {

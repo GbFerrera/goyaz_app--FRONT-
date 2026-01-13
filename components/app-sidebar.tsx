@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarBody,
@@ -10,19 +11,31 @@ import {
   IconUsers,
   IconShoppingCart,
   IconLogout,
+  IconLayoutKanban,
+  IconUserCheck
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 export function AppSidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  if (pathname === "/" || pathname === "/login") {
+    return null;
+  }
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+    }
+    router.replace("/");
+  };
   const links = [
-    {
-      label: "Dashboard",
-      href: "/",
+     {
+      label: "Administradores",
+      href: "/admins",
       icon: (
-        <IconLayoutDashboard className="h-5 w-5 flex-shrink-0" />
+        <IconUserCheck className="h-5 w-5 flex-shrink-0" />
       ),
     },
     {
@@ -32,12 +45,19 @@ export function AppSidebar() {
         <IconUsers className="h-5 w-5 flex-shrink-0" />
       ),
     },
+   
     {
       label: "Vendas",
       href: "/sales",
       icon: (
         <IconShoppingCart className="h-5 w-5 flex-shrink-0" />
       ),
+    }, {
+      label: "Kanban",
+      href: "/kanban",
+      icon: (
+        <IconLayoutKanban className="h-5 w-5 flex-shrink-0" />
+      ), 
     },
   ];
 
@@ -58,7 +78,8 @@ export function AppSidebar() {
           <SidebarLink
             link={{
               label: "Sair",
-              href: "#",
+              href: "/",
+              onClick: handleLogout,
               icon: (
                 <IconLogout className="h-5 w-5 flex-shrink-0" />
               ),
@@ -86,9 +107,11 @@ export const Logo = () => {
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-sidebar-foreground"
+        className="font-bold whitespace-pre text-white text-3xl"
       >
-        Reserva Legal
+        Goyaz
+
+        <p className="text-[10px] text-white/70 font-medium tracking-wider uppercase">Regularização fundiária e ambiental</p>
       </motion.span>
     </Link>
   );
