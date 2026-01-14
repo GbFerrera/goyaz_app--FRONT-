@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reserva Legal - Admin",
-  description: "Sistema de administração Reserva Legal",
+  title: "GOYAZ - Painel Administrativo",
+  description: "Sistema de administração GOYAZ",
   icons: {
-    icon: "/logo.png",
+    icon: "/icon.png",
   },
 };
 

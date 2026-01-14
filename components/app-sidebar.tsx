@@ -65,8 +65,20 @@ export function AppSidebar() {
 
   return (
     <Sidebar open={open} setOpen={setOpen}>
-      <SidebarBody className="justify-between gap-10">
-        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+      <SidebarBody className="justify-between gap-10 relative overflow-hidden">
+        {/* Imagem de Fundo com Opacidade */}
+        {open && (
+          <div className="absolute bottom-0 right-10 pointer-events-none flex items-end justify-end opacity-[0.08] select-none translate-x-1/4 translate-y-1/4">
+            <Image 
+              src="/icon-white.png" 
+              alt="Background Icon" 
+              width={350} 
+              height={350}
+              className="object-contain"
+            />
+          </div>
+        )}
+        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden relative z-10">
           {open ? <Logo /> : <LogoIcon />}
           <div className="mt-8 flex flex-col gap-2">
             {links.map((link, idx) => (
@@ -95,24 +107,16 @@ export const Logo = () => {
   return (
     <Link
       href="/"
-      className="font-normal flex space-x-3 items-center text-sm py-1 relative z-20"
+      className="font-normal flex flex-col items-center justify-center text-sm py-1 relative z-20 w-full"
     >
       <Image 
         src="/logo.png" 
-        alt="Reserva Legal" 
-        width={40} 
-        height={40}
-        className="flex-shrink-0"
+        alt="Goyaz" 
+        width={280} 
+        height={60}
+        className="h-12 w-auto flex-shrink-0"
+        priority
       />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-bold whitespace-pre text-white text-3xl"
-      >
-        Goyaz
-
-        <p className="text-[10px] text-white/70 font-medium tracking-wider uppercase">Regularização fundiária e ambiental</p>
-      </motion.span>
     </Link>
   );
 };
@@ -121,14 +125,15 @@ export const LogoIcon = () => {
   return (
     <Link
       href="/"
-      className="font-normal flex items-center text-sm py-1 relative z-20"
+      className="font-normal flex items-center justify-center text-sm py-1 relative z-20 w-full"
     >
       <Image 
-        src="/logo.png" 
-        alt="Reserva Legal" 
-        width={40} 
-        height={40}
-        className="flex-shrink-0"
+        src="/icon.png" 
+        alt="Goyaz" 
+        width={79} 
+        height={79}
+        className=" flex-shrink-0"
+        priority
       />
     </Link>
   );

@@ -19,6 +19,37 @@ export default function Admins() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [document, setDocument] = useState("");
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 10) {
+      return numbers
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4})(\d)/, "$1-$2")
+        .substring(0, 14);
+    }
+    return numbers
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
+      .substring(0, 15);
+  };
+
+  const formatDocument = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 11) {
+      return numbers
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+        .substring(0, 14);
+    }
+    return numbers
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
+      .substring(0, 18);
+  };
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -268,7 +299,7 @@ export default function Admins() {
                     </label>
                     <Input
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(formatPhone(e.target.value))}
                       placeholder="(00) 00000-0000"
                       className="h-11 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 focus:ring-primary/20"
                     />
@@ -279,7 +310,7 @@ export default function Admins() {
                     </label>
                     <Input
                       value={document}
-                      onChange={(e) => setDocument(e.target.value)}
+                      onChange={(e) => setDocument(formatDocument(e.target.value))}
                       placeholder="CPF ou CNPJ"
                       className="h-11 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 focus:ring-primary/20"
                     />

@@ -1,7 +1,7 @@
  "use client";
  import { useEffect, useState } from "react";
  import { PageLayout } from "@/components/page-layout";
- import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+ import { Field, FieldLabel } from "@/components/ui/field";
  import { Input } from "@/components/ui/input";
  import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -13,7 +13,7 @@ import {
   DrawerDescription, 
   DrawerFooter 
 } from "@/components/ui/drawer";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+
  import { 
   IconPlus, 
   IconPencil, 
@@ -24,7 +24,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
   IconCalendar, 
   IconUser, 
   IconSearch, 
-  IconDotsVertical, 
   IconFileUpload,
   IconTrash,
   IconAlertCircle,
@@ -39,6 +38,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
      name: string;
      phone_number?: string | null;
      email?: string | null;
+     documents?: any;
      created_at?: string;
    };
    const [adminId, setAdminId] = useState<number | null>(null);
@@ -46,7 +46,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
    const [email, setEmail] = useState("");
    const [phone, setPhone] = useState("");
    const [loading, setLoading] = useState(false);
-   const [message, setMessage] = useState<string | null>(null);
    const [error, setError] = useState<string | null>(null);
    const [open, setOpen] = useState(false);
    const [clients, setClients] = useState<Client[]>([]);
@@ -60,6 +59,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
   const [viewDocsDrawer, setViewDocsDrawer] = useState(false);
   const [selectedClientDocs, setSelectedClientDocs] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -67,13 +67,161 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
     c.phone_number?.includes(searchTerm)
   );
 
-  // Simulação de documentos (já que o backend/firebase ainda não está integrado para listagem)
-  const mockDocuments = [
-    { id: 1, name: "contrato_social.pdf", size: "1.2 MB", description: "Contrato assinado em 2023", date: "2023-10-15" },
-    { id: 2, name: "comprovante_endereco.jpg", size: "450 KB", description: "Referente ao mês de Dezembro", date: "2023-12-05" },
-  ];
+  const getClientDocuments = (client: Client | null) => {
+    if (!client || !client.documents) return [];
+    if (Array.isArray(client.documents)) return client.documents;
+    try {
+      return typeof client.documents === "string" ? JSON.parse(client.documents) : client.documents;
+    } catch (e) {
+      console.error("Error parsing documents:", e);
+      return [];
+    }
+  };
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3433";
+
+  async function uploadFile(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const res = await fetch(`${API_BASE}/uploads`, {
+      method: "POST",
+      headers: { Authorization: token ? `Bearer ${token}` : "" },
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Erro ao fazer upload");
+    const data = await res.json();
+    return data.url;
+  }
+
+  async function deleteFileFromStorage(url: string) {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    await fetch(`${API_BASE}/uploads`, {
+      method: "DELETE",
+      headers: { 
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "" 
+      },
+      body: JSON.stringify({ path: url }),
+    });
+  }
+
+  async function handleSaveDocs() {
+    if (!docsClient || docFiles.length === 0) return;
+    setIsUploading(true);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      
+      // 1. Upload files
+      const newUrls = await Promise.all(docFiles.map(file => uploadFile(file)));
+      
+      // 2. Prepare documents array
+      const existingDocs = getClientDocuments(docsClient);
+      const newDocs = [
+        ...existingDocs,
+        ...newUrls.map(url => ({
+          url,
+          name: docFiles.find(f => url.includes(f.name))?.name || "documento",
+          description: docDescription,
+          date: new Date().toISOString()
+        }))
+      ];
+
+      // 3. Update client
+      const res = await fetch(`${API_BASE}/clients/${docsClient.id}`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json", 
+          Authorization: token ? `Bearer ${token}` : "" 
+        },
+        body: JSON.stringify({
+          documents: newDocs
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const updatedClient = data.data; // O backend retorna { message, data }
+
+        // Se a gaveta lateral estiver aberta para este cliente, atualizamos os dados dela
+        if (selectedClientDocs?.id === updatedClient.id) {
+          setSelectedClientDocs(updatedClient);
+        }
+
+        closeDocs();
+        if (adminId) fetchClients(adminId);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao salvar documentos");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function handleDeleteDoc(client: Client, docUrl: string) {
+    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+    
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      
+      // 1. Delete from storage
+      await deleteFileFromStorage(docUrl);
+      
+      // 2. Update database
+      const existingDocs = getClientDocuments(client);
+      const updatedDocs = existingDocs.filter((d: any) => d.url !== docUrl);
+      
+      const res = await fetch(`${API_BASE}/clients/${client.id}`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json", 
+          Authorization: token ? `Bearer ${token}` : "" 
+        },
+        body: JSON.stringify({
+          documents: updatedDocs.length > 0 ? updatedDocs : null
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const updatedClient = data.data;
+
+        if (selectedClientDocs?.id === updatedClient.id) {
+          setSelectedClientDocs(updatedClient);
+        }
+        if (adminId) fetchClients(adminId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleDeleteClient(id: number) {
+     if (!confirm("Tem certeza que deseja excluir este cliente? Todas as informações e documentos serão perdidos.")) return;
+     
+     try {
+       const client = clients.find(c => c.id === id);
+       if (client && client.documents) {
+         const docs = getClientDocuments(client);
+         for (const doc of docs) {
+           await deleteFileFromStorage(doc.url);
+         }
+       }
+
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch(`${API_BASE}/clients/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
+      
+      if (res.ok) {
+        if (adminId) fetchClients(adminId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
  
    async function fetchAdminFromToken() {
      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -114,18 +262,32 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
    }, []);
  
    useEffect(() => {
-     if (adminId) {
-       fetchClients(adminId);
+    if (adminId) {
+      fetchClients(adminId);
+    }
+  }, [adminId]);
+
+  // Sincroniza o cliente selecionado na gaveta com a lista de clientes atualizada
+   useEffect(() => {
+     if (selectedClientDocs) {
+       const updated = clients.find(c => c.id === selectedClientDocs.id);
+       if (updated) {
+         const currentDocsStr = JSON.stringify(selectedClientDocs.documents);
+         const updatedDocsStr = JSON.stringify(updated.documents);
+         
+         if (currentDocsStr !== updatedDocsStr || updated.name !== selectedClientDocs.name || updated.email !== selectedClientDocs.email || updated.phone_number !== selectedClientDocs.phone_number) {
+           setSelectedClientDocs(updated);
+         }
+       }
      }
-   }, [adminId]);
- 
-   function openCreateDialog() {
+   }, [clients]);
+
+  function openCreateDialog() {
      setIsEditing(false);
      setEditingId(null);
      setName("");
      setEmail("");
      setPhone("");
-     setMessage(null);
      setError(null);
      setOpen(true);
    }
@@ -136,7 +298,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
     setName(client.name || "");
     setEmail(client.email || "");
     setPhone(client.phone_number || "");
-    setMessage(null);
     setError(null);
     setOpen(true);
   }
@@ -169,10 +330,31 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
     setDocDescription("");
   }
 
+  function maskPhone(value: string) {
+    let r = value.replace(/\D/g, "");
+    if (r.length > 11) r = r.substring(0, 11);
+    if (r.length > 10) {
+      r = r.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    } else if (r.length > 5) {
+      r = r.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    } else if (r.length > 2) {
+      r = r.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
+    } else {
+      r = r.replace(/^(\d*)/, "($1");
+    }
+    return r;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    // Validação de email
+    if (email && !email.includes("@")) {
+      setError("Por favor, insira um e-mail válido.");
+      return;
+    }
+
     setLoading(true);
-    setMessage(null);
     setError(null);
      try {
        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -200,7 +382,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
          setError(data?.message ?? (isEditing ? "Erro ao atualizar cliente" : "Erro ao criar cliente"));
          return;
        }
-       setMessage(isEditing ? "Cliente atualizado com sucesso" : "Cliente criado com sucesso");
        setName("");
        setEmail("");
        setPhone("");
@@ -297,7 +478,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                         id="phone"
                         className="pl-9"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => setPhone(maskPhone(e.target.value))}
                         placeholder="(00) 00000-0000"
                       />
                     </div>
@@ -311,7 +492,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                   </div>
                 )}
 
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-4">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                   <Button type="submit" disabled={loading || (!isEditing && !adminId)}>
                     {loading ? (
@@ -390,9 +571,18 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
           </div>
           <DialogFooter className="pt-4 border-t">
             <Button variant="outline" onClick={closeDocs}>Cancelar</Button>
-            <Button onClick={closeDocs} className="gap-2">
-              <IconCheck className="w-4 h-4" />
-              Salvar Documentos
+            <Button onClick={handleSaveDocs} disabled={isUploading || docFiles.length === 0} className="gap-2">
+              {isUploading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <IconCheck className="w-4 h-4" />
+                  Salvar Documentos
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -420,11 +610,11 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
             </DrawerHeader>
 
             <div className="flex-1 p-8 space-y-6 overflow-y-auto">
-              {mockDocuments.length > 0 ? (
+              {getClientDocuments(selectedClientDocs).length > 0 ? (
                 <div className="space-y-4">
-                  {mockDocuments.map((doc) => (
+                  {getClientDocuments(selectedClientDocs).map((doc: any, idx: number) => (
                     <div 
-                      key={doc.id} 
+                      key={`${doc.url}-${idx}`} 
                       className="group border rounded-2xl p-5 bg-card hover:border-primary/50 transition-all shadow-sm hover:shadow-lg"
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -436,8 +626,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                             <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-primary transition-colors">
                               {doc.name}
                             </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{doc.size}</span>
+                            <div className="flex items-center gap-2 mt-5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Documento</span>
                               <span className="text-slate-300">•</span>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                                 <IconCalendar className="w-3 h-3" />
@@ -446,14 +636,28 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                             </div>
                           </div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="shrink-0 h-10 w-10 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
-                          title="Baixar arquivo"
-                        >
-                          <IconDownload className="w-5 h-5" />
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a 
+                            href={doc.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className=" flex items-center justify-center w-10 h-10 rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm bg-white dark:bg-slate-900"
+                            title="Ver/Baixar arquivo"
+                          >
+                            <IconDownload className="w-5 h-5" />
+                          </a>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-10 w-10 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (selectedClientDocs) handleDeleteDoc(selectedClientDocs, doc.url);
+                            }}
+                          >
+                            <IconTrash className="w-5 h-5" />
+                          </Button>
+                        </div>
                       </div>
                       
                       {doc.description && (
@@ -556,6 +760,14 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                   >
                     <IconFileUpload className="w-4 h-4" />
                   </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 text-slate-500"
+                    onClick={() => handleDeleteClient(c.id)}
+                  >
+                    <IconTrash className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 
@@ -587,7 +799,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
                     <IconFileDescription className="w-4 h-4" />
                   </div>
                   <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                    {mockDocuments.length}
+                    {getClientDocuments(c).length}
                   </div>
                 </div>
               </div>
