@@ -56,10 +56,19 @@ import {
   const [docsClient, setDocsClient] = useState<Client | null>(null);
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [docDescription, setDocDescription] = useState("");
+  const [docCaseTitle, setDocCaseTitle] = useState("");
+  const [docCaseStatus, setDocCaseStatus] = useState("Pendente");
   const [viewDocsDrawer, setViewDocsDrawer] = useState(false);
   const [selectedClientDocs, setSelectedClientDocs] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [editingDocIndex, setEditingDocIndex] = useState<number | null>(null);
+  const [editDocData, setEditDocData] = useState<{ name: string; description?: string; caseTitle?: string; caseStatus?: string }>({
+    name: "",
+    description: "",
+    caseTitle: "",
+    caseStatus: "Pendente",
+  });
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -69,16 +78,37 @@ import {
 
   const getClientDocuments = (client: Client | null) => {
     if (!client || !client.documents) return [];
-    if (Array.isArray(client.documents)) return client.documents;
+    const toDocObj = (item: any) => {
+      if (typeof item === "string") {
+        const cleaned = item.trim().replace(/^`|`$/g, "");
+        return { url: cleaned, name: "Documento", date: new Date().toISOString(), caseTitle: undefined, caseStatus: undefined };
+      }
+      if (item && typeof item === "object") {
+        return {
+          url: item.url?.trim?.().replace(/^`|`$/g, "") ?? "",
+          name: item.name ?? "Documento",
+          date: item.date ?? new Date().toISOString(),
+          description: item.description,
+          caseTitle: item.caseTitle,
+          caseStatus: item.caseStatus,
+        };
+      }
+      return { url: "", name: "Documento", date: new Date().toISOString(), caseTitle: undefined, caseStatus: undefined };
+    };
     try {
-      return typeof client.documents === "string" ? JSON.parse(client.documents) : client.documents;
+      const docs = Array.isArray(client.documents)
+        ? client.documents
+        : typeof client.documents === "string"
+        ? JSON.parse(client.documents)
+        : client.documents;
+      return Array.isArray(docs) ? docs.map(toDocObj) : [];
     } catch (e) {
       console.error("Error parsing documents:", e);
       return [];
     }
   };
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3433";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433";
 
   async function uploadFile(file: File) {
     const formData = new FormData();
@@ -123,6 +153,8 @@ import {
           url,
           name: docFiles.find(f => url.includes(f.name))?.name || "documento",
           description: docDescription,
+          caseTitle: docCaseTitle || undefined,
+          caseStatus: docCaseStatus || undefined,
           date: new Date().toISOString()
         }))
       ];
@@ -306,6 +338,8 @@ import {
     setDocsClient(client);
     setDocFiles([]);
     setDocDescription("");
+    setDocCaseTitle("");
+    setDocCaseStatus("Pendente");
     setOpenDocs(true);
   }
 
@@ -328,6 +362,8 @@ import {
     setDocsClient(null);
     setDocFiles([]);
     setDocDescription("");
+    setDocCaseTitle("");
+    setDocCaseStatus("Pendente");
   }
 
   function maskPhone(value: string) {
@@ -557,6 +593,31 @@ import {
                 </div>
               )}
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="docCaseTitle" className="font-bold text-slate-700">Título do Caso</FieldLabel>
+                  <Input
+                    id="docCaseTitle"
+                    placeholder="Ex: Regularização de IPTU"
+                    value={docCaseTitle}
+                    onChange={(e) => setDocCaseTitle(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="docCaseStatus" className="font-bold text-slate-700">Status do Caso</FieldLabel>
+                  <select
+                    id="docCaseStatus"
+                    value={docCaseStatus}
+                    onChange={(e) => setDocCaseStatus(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="Pendente">Pendente</option>
+                    <option value="Em andamento">Em andamento</option>
+                    <option value="Concluído">Concluído</option>
+                  </select>
+                </Field>
+              </div>
+
               <Field>
                 <FieldLabel htmlFor="docDescription" className="font-bold text-slate-700">Descrição dos Documentos</FieldLabel>
                 <textarea
@@ -623,11 +684,25 @@ import {
                             <IconFileDescription className="w-6 h-6" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-primary transition-colors">
-                              {doc.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Documento</span>
+                            <div className="flex items-center gap-3">
+                              <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-primary transition-colors">
+                                {doc.name}
+                              </h4>
+                              {doc.caseStatus && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                                  doc.caseStatus === "Pendente" ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" :
+                                  doc.caseStatus === "Em andamento" ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" :
+                                  doc.caseStatus === "Concluído" ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800" :
+                                  "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800"
+                                }`}>
+                                  {doc.caseStatus}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                Documento
+                              </span>
                               <span className="text-slate-300">•</span>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                                 <IconCalendar className="w-3 h-3" />
@@ -646,6 +721,23 @@ import {
                           >
                             <IconDownload className="w-5 h-5" />
                           </a>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-10 w-10 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingDocIndex(idx);
+                    setEditDocData({
+                      name: doc.name ?? "",
+                      description: doc.description ?? "",
+                      caseTitle: doc.caseTitle ?? "",
+                      caseStatus: doc.caseStatus ?? "Pendente",
+                    });
+                  }}
+                >
+                  <IconPencil className="w-5 h-5" />
+                </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -660,13 +752,109 @@ import {
                         </div>
                       </div>
                       
-                      {doc.description && (
-                        <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <p className="text-sm text-slate-600 dark:text-slate-400 italic leading-relaxed">
-                            "{doc.description}"
-                          </p>
-                        </div>
-                      )}
+            {editingDocIndex === idx ? (
+              <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor={`editName-${idx}`} className="font-bold text-slate-700">Nome</FieldLabel>
+                    <Input
+                      id={`editName-${idx}`}
+                      value={editDocData.name}
+                      onChange={(e) => setEditDocData((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`editCaseTitle-${idx}`} className="font-bold text-slate-700">Título do Caso</FieldLabel>
+                    <Input
+                      id={`editCaseTitle-${idx}`}
+                      value={editDocData.caseTitle ?? ""}
+                      onChange={(e) => setEditDocData((prev) => ({ ...prev, caseTitle: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor={`editCaseStatus-${idx}`} className="font-bold text-slate-700">Status do Caso</FieldLabel>
+                    <select
+                      id={`editCaseStatus-${idx}`}
+                      value={editDocData.caseStatus ?? "Pendente"}
+                      onChange={(e) => setEditDocData((prev) => ({ ...prev, caseStatus: e.target.value }))}
+                      className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="Pendente">Pendente</option>
+                      <option value="Em andamento">Em andamento</option>
+                      <option value="Concluído">Concluído</option>
+                    </select>
+                  </Field>
+                </div>
+                <Field>
+                  <FieldLabel htmlFor={`editDescription-${idx}`} className="font-bold text-slate-700">Descrição</FieldLabel>
+                  <textarea
+                    id={`editDescription-${idx}`}
+                    className="w-full min-h-[80px] p-4 rounded-xl border border-input bg-background text-sm"
+                    value={editDocData.description ?? ""}
+                    onChange={(e) => setEditDocData((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </Field>
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingDocIndex(null);
+                      setEditDocData({ name: "", description: "", caseTitle: "", caseStatus: "Pendente" });
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!selectedClientDocs) return;
+                      const docs = getClientDocuments(selectedClientDocs);
+                      const updatedDocs = docs.map((d: any, i: number) =>
+                        i === (editingDocIndex ?? -1) ? { ...d, ...editDocData } : d
+                      );
+                      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                      const res = await fetch(`${API_BASE}/clients/${selectedClientDocs.id}`, {
+                        method: "PUT",
+                        headers: { 
+                          "Content-Type": "application/json", 
+                          Authorization: token ? `Bearer ${token}` : "" 
+                        },
+                        body: JSON.stringify({ documents: updatedDocs }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        const updatedClient = data.data;
+                        setSelectedClientDocs(updatedClient);
+                        setEditingDocIndex(null);
+                        setEditDocData({ name: "", description: "", caseTitle: "", caseStatus: "Pendente" });
+                        if (adminId) fetchClients(adminId);
+                      }
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {doc.caseTitle && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Caso:</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {doc.caseTitle}
+                    </span>
+                  </div>
+                )}
+                {doc.description && (
+                  <div className="mt-4 p-4 bg-slate-50/80 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 italic leading-relaxed">
+                      "{doc.description}"
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
                     </div>
                   ))}
                 </div>

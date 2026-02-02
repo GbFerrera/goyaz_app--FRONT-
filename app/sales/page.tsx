@@ -21,7 +21,7 @@ type Sale = {
 };
 
 export default function Sales() {
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3433";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433";
   const STANDARD_CATEGORIES = ["Reserva legal", "Imóvel rural", "Imóvel urbano"];
   const token = useMemo(() => (typeof window !== "undefined" ? localStorage.getItem("token") : null), []);
   const [sales, setSales] = useState<Sale[]>([]);

@@ -17,7 +17,7 @@ export function LoginForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3433"
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

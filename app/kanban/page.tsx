@@ -25,7 +25,7 @@ type Card = {
 };
 
 export default function Kanban() {
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3433";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433";
   const [columns, setColumns] = useState<Column[]>([]);
  const [cardsByColumn, setCardsByColumn] = useState<Record<number, Card[]>>({});
   const [openColumn, setOpenColumn] = useState(false);
@@ -41,20 +41,30 @@ export default function Kanban() {
  const token = useMemo(() => (typeof window !== "undefined" ? localStorage.getItem("token") : null), []);
 
   async function fetchColumns() {
-    const res = await fetch(`${API_BASE}/kanban/columns`, {
-      headers: { Authorization: token ? `Bearer ${token}` : "" },
-    });
-    const data = await res.json();
-    if (Array.isArray(data)) setColumns(data);
+    try {
+      const res = await fetch(`${API_BASE}/kanban/columns`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
+      if (!res.ok) throw new Error("Falha ao buscar colunas");
+      const data = await res.json();
+      if (Array.isArray(data)) setColumns(data);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function fetchCards(columnId: number) {
-    const res = await fetch(`${API_BASE}/kanban/cards?column_id=${columnId}`, {
-      headers: { Authorization: token ? `Bearer ${token}` : "" },
-    });
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      setCardsByColumn((prev) => ({ ...prev, [columnId]: data }));
+    try {
+      const res = await fetch(`${API_BASE}/kanban/cards?column_id=${columnId}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
+      if (!res.ok) throw new Error("Falha ao buscar cartões");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCardsByColumn((prev) => ({ ...prev, [columnId]: data }));
+      }
+    } catch (err) {
+      console.error(err);
     }
   }
 
