@@ -25,7 +25,7 @@ type Card = {
 };
 
 export default function Kanban() {
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://localhost:3334:3433";
   const [columns, setColumns] = useState<Column[]>([]);
  const [cardsByColumn, setCardsByColumn] = useState<Record<number, Card[]>>({});
   const [openColumn, setOpenColumn] = useState(false);

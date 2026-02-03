@@ -68,7 +68,7 @@ export default function Admins() {
   const [messageReset, setMessageReset] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://192.168.1.38:3433:3433";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://http://localhost:3334:3433";
 
   const filteredAdmins = admins.filter(a => 
     a.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
